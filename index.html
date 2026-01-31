@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Time Tracker</title>
+    <style>
+        :root {
+            --primary: #00ffab;
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --input-bg: #2a2a2a;
+            --text: #e0e0e0;
+            --text-dim: #888;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            padding-top: env(safe-area-inset-top, 10px);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin: 5px 0 15px 0;
+            font-size: 1.2rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+            background: var(--card-bg);
+            padding: 12px;
+            border-radius: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+        }
+
+        label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .weekday-display {
+            font-size: 0.6rem;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: var(--input-bg);
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 0.8rem;
+            -webkit-appearance: none;
+        }
+
+        select {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+            text-overflow: ellipsis;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 14px 18px;
+            margin: 10px 0;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            border-left: 4px solid var(--primary);
+            text-align: left;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .timer {
+            font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+            font-size: 1.35rem;
+            color: var(--primary);
+            margin-top: 6px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            display: flex;
+            gap: 4px;
+        }
+
+        .empty-state {
+            color: #444;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        @supports (padding: env(safe-area-inset-bottom)) {
+            .container {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tracker</h1>
+
+        <div class="input-section">
+            <div class="input-group">
+                <div class="label-row">
+                    <label for="past-date">Past Date</label>
+                    <span id="past-weekday" class="weekday-display"></span>
+                </div>
+                <input type="datetime-local" id="past-date">
+                <select id="past-tz"></select>
+            </div>
+            <div class="input-group">
+                <div class="label-row">
+                    <label for="future-date">Future Date</label>
+                    <span id="future-weekday" class="weekday-display"></span>
+                </div>
+                <input type="datetime-local" id="future-date">
+                <select id="future-tz"></select>
+            </div>
+        </div>
+
+        <div class="display-section">
+            <div class="card">
+                <h3 id="past-header">Time Since</h3>
+                <div id="countup" class="timer"><span class="empty-state">Set date/time</span></div>
+            </div>
+            <div class="card">
+                <h3 id="future-header">Time Until</h3>
+                <div id="countdown" class="timer"><span class="empty-state">Set date/time</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pastInput = document.getElementById('past-date');
+        const futureInput = document.getElementById('future-date');
+        const pastTz = document.getElementById('past-tz');
+        const futureTz = document.getElementById('future-tz');
+        const countupDisplay = document.getElementById('countup');
+        const countdownDisplay = document.getElementById('countdown');
+        const pastWeekday = document.getElementById('past-weekday');
+        const futureWeekday = document.getElementById('future-weekday');
+        const pastHeader = document.getElementById('past-header');
+        const futureHeader = document.getElementById('future-header');
+
+        const cityMapping = {
+            "-12": "Baker Island",
+            "-11": "American Samoa",
+            "-10": "Honolulu",
+            "-09": "Anchorage",
+            "-08": "Los Angeles",
+            "-07": "Denver",
+            "-06": "Chicago",
+            "-05": "New York",
+            "-04": "Santiago",
+            "-03": "Rio de Janeiro",
+            "-02": "South Georgia",
+            "-01": "Azores",
+            "00": "London / UTC",
+            "01": "Paris / Berlin",
+            "02": "Cairo / Johannesburg",
+            "03": "Moscow / Riyadh",
+            "04": "Dubai / Baku",
+            "05": "Karachi / Tashkent",
+            "06": "Dhaka / Almaty",
+            "07": "Bangkok / Jakarta",
+            "08": "Singapore / Beijing",
+            "09": "Tokyo / Seoul",
+            "10": "Sydney / Guam",
+            "11": "Solomon Islands",
+            "12": "Auckland / Fiji",
+            "13": "Tonga",
+            "14": "Kiritimati"
+        };
+
+        function populateTimeZones() {
+            const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            const localOpt = document.createElement('option');
+            localOpt.value = "LOCAL";
+            localOpt.textContent = `Current: ${localTz.replace(/\_/g, ' ')}`;
+
+            pastTz.appendChild(localOpt.cloneNode(true));
+            futureTz.appendChild(localOpt.cloneNode(true));
+
+            for (let i = -12; i <= 14; i++) {
+                const sign = i >= 0 ? "+" : "-";
+                const num = Math.abs(i).toString().padStart(2, '0');
+                const lookupKey = i === 0 ? "00" : (i > 0 ? num : "-" + num);
+
+                const city = cityMapping[lookupKey] || "";
+                const offsetValue = `UTC${sign}${num}:00`;
+
+                const opt = document.createElement('option');
+                opt.value = offsetValue;
+                opt.textContent = `${offsetValue} (${city})`;
+
+                pastTz.appendChild(opt.cloneNode(true));
+                futureTz.appendChild(opt.cloneNode(true));
+            }
+        }
+
+        window.onload = () => {
+            populateTimeZones();
+
+            const savedPast = localStorage.getItem('past-date-final');
+            const savedFuture = localStorage.getItem('future-date-final');
+            const savedPastTz = localStorage.getItem('past-tz-final');
+            const savedFutureTz = localStorage.getItem('future-tz-final');
+
+            if (savedPast) pastInput.value = savedPast;
+            if (savedFuture) futureInput.value = savedFuture;
+            if (savedPastTz) pastTz.value = savedPastTz;
+            if (savedFutureTz) futureTz.value = savedFutureTz;
+
+            updateTimers();
+        };
+
+        function getTimestampInZone(dateTimeStr, timeZone) {
+            if (!dateTimeStr) return null;
+
+            if (timeZone === "LOCAL") {
+                return new Date(dateTimeStr).getTime();
+            }
+
+            const offset = timeZone.replace('UTC', '');
+            const isoString = `${dateTimeStr}:00${offset}`;
+            return new Date(isoString).getTime();
+        }
+
+        function formatDateDisplay(dateTimeStr, timeZone) {
+            if (!dateTimeStr) return "";
+
+            const [y, m, d, hh, mm] = dateTimeStr.split(/[-T:]/);
+            const dateObj = new Date(y, m - 1, d, hh, mm);
+
+            const datePart = dateObj.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+
+            let hour = parseInt(hh);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12 || 12;
+            const timePart = `${hour}:${mm} ${ampm}`;
+
+            const zoneLabel = timeZone === "LOCAL" ? "Local" : timeZone;
+            return `${datePart}, ${timePart} (${zoneLabel})`;
+        }
+
+        function getWeekday(dateString) {
+            if (!dateString) return "";
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { weekday: 'short' });
+        }
+
+        function formatTime(ms) {
+            const absoluteMs = Math.abs(ms);
+            const seconds = Math.floor((absoluteMs / 1000) % 60);
+            const minutes = Math.floor((absoluteMs / (1000 * 60)) % 60);
+            const hours = Math.floor((absoluteMs / (1000 * 60 * 60)) % 24);
+            const days = Math.floor(absoluteMs / (1000 * 60 * 60 * 24));
+            return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+        }
+
+        function updateTimers() {
+            const now = Date.now();
+
+            localStorage.setItem('past-date-final', pastInput.value);
+            localStorage.setItem('future-date-final', futureInput.value);
+            localStorage.setItem('past-tz-final', pastTz.value);
+            localStorage.setItem('future-tz-final', futureTz.value);
+
+            pastWeekday.innerText = getWeekday(pastInput.value);
+            futureWeekday.innerText = getWeekday(futureInput.value);
+
+            const pastDateFormatted = formatDateDisplay(pastInput.value, pastTz.value);
+            const futureDateFormatted = formatDateDisplay(futureInput.value, futureTz.value);
+
+            pastHeader.innerText = pastDateFormatted ? `Since ${pastDateFormatted}` : "Time Since";
+            futureHeader.innerText = futureDateFormatted ? `Until ${futureDateFormatted}` : "Time Until";
+
+            if (pastInput.value) {
+                const pastTimestamp = getTimestampInZone(pastInput.value, pastTz.value);
+                const diff = now - pastTimestamp;
+                countupDisplay.innerText = diff < 0 ? "In Future" : formatTime(diff);
+            }
+
+            if (futureInput.value) {
+                const futureTimestamp = getTimestampInZone(futureInput.value, futureTz.value);
+                const diff = futureTimestamp - now;
+                countdownDisplay.innerText = diff < 0 ? "Reached!" : formatTime(diff);
+            }
+        }
+
+        [pastInput, futureInput, pastTz, futureTz].forEach(el => el.addEventListener('input', updateTimers));
+        setInterval(updateTimers, 1000);
+    </script>
+</body>
+</html>
